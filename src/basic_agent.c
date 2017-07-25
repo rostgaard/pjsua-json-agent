@@ -82,13 +82,14 @@ void or_dump_status() {
  * status()
  *
  */
-void or_status(or_reply_t status, char *message) {
-  fprintf(stdout, "{"
-                  "\"reply\":\"%s\","
-                  "\"message\": \"%s\""
-                  "}\n",
-          or_reply_to_string(status), message);
+void or_reply(or_reply_t status, char *message) {
+  json_object *json_status = json_object_new_object();
+  json_object_object_add(json_status, "reply", json_object_new_string(or_reply_to_string(status)));
+  json_object_object_add(json_status, "message", json_object_new_string(message));
+
+  fprintf(stdout, "%s\n", json_object_to_json_string(json_status));
   fflush(stdout);
+  json_object_put(json_status);
 }
 
 void or_event(or_event_t event, char *message) {
@@ -279,13 +280,13 @@ void register_account(pjsua_acc_id acc_id) {
     pjsua_acc_get_info(acc_id, &account_info);
 
     if (usleep(u_resolution) < 0 || reconnect_count > retries) {
-      or_status(OR_ERROR, "ACCOUNT_TIMEOUT");
+      or_reply(OR_ERROR, "ACCOUNT_TIMEOUT");
       exit(1);
     }
     reconnect_count++;
   }
   is_registered = true;
-  or_status(OR_OK, "Account registered.");
+  or_reply(OR_OK, "Account registered.");
 }
 
 /**
@@ -314,14 +315,14 @@ void unregister_account(pjsua_acc_id acc_id) {
       pjsua_acc_get_info(acc_id, &account_info);
 
       if (usleep(u_resolution) < 0 || reconnect_count > retries) {
-        or_status(OR_ERROR, "ACCOUNT_TIMEOUT");
+        or_reply(OR_ERROR, "ACCOUNT_TIMEOUT");
         exit(1);
       }
       reconnect_count++;
     }
     is_registered = false;
   }
-  or_status(OR_OK, "Unregistered account ");
+  or_reply(OR_OK, "Unregistered account ");
 }
 
 /**
@@ -476,7 +477,7 @@ int main(int argc, char *argv[]) {
     char option[256];
 
     if (fgets(option, sizeof(option), stdin) == NULL) {
-      or_status(OR_ERROR, "EOF while reading stdin, will quit now..");
+      or_reply(OR_ERROR, "EOF while reading stdin, will quit now..");
       break;
     }
 
@@ -485,9 +486,9 @@ int main(int argc, char *argv[]) {
       pj_str_t uri = pj_str(&option[1]);
       status = pjsua_call_make_call(acc_id, &uri, 0, NULL, NULL, NULL);
       if (status != PJ_SUCCESS) {
-        or_status(OR_ERROR, "Could not make call");
+        or_reply(OR_ERROR, "Could not make call");
       } else {
-        or_status(OR_OK, "Dialling...");
+        or_reply(OR_OK, "Dialling...");
       }
     }
 
@@ -505,25 +506,25 @@ int main(int argc, char *argv[]) {
     else if (option[0] == 'a') {
       if (option[1] == '1') {
         autoanswer[0] = true;
-        or_status(OR_OK, "Autoanswer enabled.");
+        or_reply(OR_OK, "Autoanswer enabled.");
       } else {
-        or_status(OR_ERROR, "Invalid account.");
+        or_reply(OR_ERROR, "Invalid account.");
       }
     }
 
     /* Disable autoanswer (manual answer) */
     else if (option[0] == 'm') {
       autoanswer[0] = false;
-      or_status(OR_OK, "Autoanswer disabled.");
+      or_reply(OR_OK, "Autoanswer disabled.");
     }
 
     /* Pickup default incoming call. */
     else if (option[0] == 'p') {
       if (current_call != PJSUA_INVALID_ID) {
         pjsua_call_answer(current_call, 200, NULL, NULL);
-        or_status(OR_OK, "Call picked up.");
+        or_reply(OR_OK, "Call picked up.");
       } else {
-        or_status(OR_ERROR, "No call to pick up.");
+        or_reply(OR_ERROR, "No call to pick up.");
       }
     }
 
@@ -537,12 +538,12 @@ int main(int argc, char *argv[]) {
         status = pjsua_call_answer(call_id, 200, NULL, NULL);
 
         if (status != PJ_SUCCESS) {
-          or_status(OR_ERROR, "Could not make call");
+          or_reply(OR_ERROR, "Could not make call");
         } else {
-          or_status(OR_OK, "Call picked up.");
+          or_reply(OR_OK, "Call picked up.");
         }
       } else {
-        or_status(OR_ERROR, "Invalid call id supplied!");
+        or_reply(OR_ERROR, "Invalid call id supplied!");
       }
     }
 
@@ -556,12 +557,12 @@ int main(int argc, char *argv[]) {
         status = pjsua_call_hangup(call_id, 0, NULL, NULL);
 
         if (status != PJ_SUCCESS) {
-          or_status(OR_ERROR, "Could not hang up call");
+          or_reply(OR_ERROR, "Could not hang up call");
         } else {
-          or_status(OR_OK, "Call hung up.");
+          or_reply(OR_OK, "Call hung up.");
         }
       } else {
-        or_status(OR_ERROR, "Invalid call id supplied!");
+        or_reply(OR_ERROR, "Invalid call id supplied!");
       }
     }
 
@@ -569,16 +570,16 @@ int main(int argc, char *argv[]) {
     else if (option[0] == 'H') {
       if (current_call != PJSUA_INVALID_ID) {
         pjsua_call_hangup(current_call, 0, NULL, NULL);
-        or_status(OR_OK, "Hanging up current call...");
+        or_reply(OR_OK, "Hanging up current call...");
       } else {
-        or_status(OR_ERROR, "No call to hang up.");
+        or_reply(OR_ERROR, "No call to hang up.");
       }
     }
 
     /* Full hangup.. */
     else if (option[0] == 'h') {
       pjsua_call_hangup_all();
-      or_status(OR_OK, "Hanging up all calls...");
+      or_reply(OR_OK, "Hanging up all calls...");
     }
 
     /* Status  */
@@ -592,11 +593,11 @@ int main(int argc, char *argv[]) {
     }
 
     else {
-      or_status(OR_ERROR, "Unknown command:");
+      or_reply(OR_ERROR, "Unknown command:");
     }
   }
   pjsua_destroy();
-  or_status(OR_OK, "Exiting...");
+  or_reply(OR_OK, "Exiting...");
 
   return 0;
 }
