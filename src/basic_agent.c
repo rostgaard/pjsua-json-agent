@@ -64,18 +64,15 @@ char *or_event_to_string(or_event_t event) { return or_event_table[event]; }
 /* Lookup function. Primarily here to supply type hinting. */
 char *or_reply_to_string(or_reply_t reply) { return or_reply_table[reply]; }
 
-void or_dump_status() {
-  char *autoanswer_text = NULL;
-  if (autoanswer[0]) {
-    autoanswer_text = "true";
-  } else {
-    autoanswer_text = "false";
-  }
+/**
+ * Return the current status af the agent..
+ */
+json_object* or_dump_status() {
+  json_object *json_status = json_object_new_object();
+  json_object_object_add(json_status, "autoanswer", json_object_new_boolean(autoanswer[0]));
+  json_object_object_add(json_status, "currentCall", json_object_new_int(current_call));
 
-  fprintf(stdout, "{\"autoanswer\" : %s,"
-                  "\"currentCall\" : %d}\n",
-          autoanswer_text, current_call);
-  fflush(stdout);
+  return json_status;
 }
 
 /*
@@ -584,7 +581,11 @@ int main(int argc, char *argv[]) {
 
     /* Status  */
     else if (option[0] == 's') {
-      or_dump_status();
+      json_object* json_status = or_dump_status();
+        // Output the JSON string.
+      fprintf(stdout, "%s\n", json_object_to_json_string(json_status));
+      fflush(stdout);
+      json_object_put(json_status);
     }
 
     /* Exit application. */
