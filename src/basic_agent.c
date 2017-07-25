@@ -620,6 +620,7 @@ void or_event_incoming_call(char *extension, int call_id, int call_state) {
 
   fprintf(stdout, "%s\n", json_object_to_json_string(jobj));
   fflush(stdout);
+  json_object_put(jobj);
 }
 
 void or_event_outgoing_call(char *extension, int call_id, int call_state) {
@@ -639,6 +640,7 @@ void or_event_outgoing_call(char *extension, int call_id, int call_state) {
 
   fprintf(stdout, "%s\n", json_object_to_json_string(jobj));
   fflush(stdout);
+  json_object_put(jobj);
 }
 
 void or_event_account_state(int account_id, bool registered) {
@@ -658,4 +660,5 @@ void or_event_account_state(int account_id, bool registered) {
 
   fprintf(stdout, "%s\n", json_object_to_json_string(jobj));
   fflush(stdout);
+  json_object_put(jobj);
 }
